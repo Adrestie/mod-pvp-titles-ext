@@ -39,3 +39,42 @@ PvPTitles.AwardTitlesOnLogin = 0
 #             2 - Remove invalid titles (if the kill count requirement is no longer met)
 
 PvPTitles.CleanUp = 0
+
+# Send the rank thresholds and the Dishonored state to client addons?
+# The server whispers the player itself with LANG_ADDON, prefix "PVPTITLES":
+#   "RANKS:<k1>,...,<k14>"                        lifetime honorable kills per rank
+#   "DISHONOR:<left>,<kills>,<required>,<window>"  seconds left Dishonored, dishonorable
+#                                                   kills within the window, kills that
+#                                                   make one Dishonored, window in seconds
+# An addon asks for both by whispering itself "REQ" with the same prefix.
+# (1: true | 0: false)
+
+PvPTitles.AddonMessages = 1
+
+# Dishonored: killing too many civilians of the enemy faction (creatures flagged
+# CREATURE_FLAG_EXTRA_CIVILIAN) makes the player Dishonored. While it lasts, every
+# faction, his own included, is hostile to him (guards attack him, vendors refuse
+# him), and any player outside his group may attack him: he stays flagged for PvP.
+# Spirit healers are spared. Suspended in battlegrounds and arenas.
+# (1: true | 0: false)
+
+PvPTitles.Dishonor.Enable = 1
+
+# Dishonorable kills, within the window (in seconds), that make the player Dishonored
+
+PvPTitles.Dishonor.Kills = 5
+PvPTitles.Dishonor.Window = 86400
+
+# How long the player stays Dishonored, in seconds of real time (offline time
+# counts). A dishonorable kill while Dishonored starts it again.
+
+PvPTitles.Dishonor.Duration = 86400
+
+# An aura put on a Dishonored player, carrying the time left. 0 = none (default).
+# A client shows an aura only if its own Spell.dbc knows the spell, and no spell of
+# the original 3.3.5a client has a fitting name, tooltip and no visual effect: by
+# default the debuff is left to client addons, which draw it from the DISHONOR
+# addon message (see the README). A server that ships a client patch can put its
+# own spell here.
+
+PvPTitles.Dishonor.AuraSpell = 0

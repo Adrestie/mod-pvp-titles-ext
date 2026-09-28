@@ -2,6 +2,7 @@
 #include "Configuration/Config.h"
 #include "Player.h"
 #include "Chat.h"
+#include "PvPTitlesExt.h"
 
 struct PvPTitles
 {
@@ -225,7 +226,24 @@ public:
     }
 };
 
-void AddPvpTitlesScripts() 
+// Rank thresholds as configured, for the addon channel (PvPTitlesAddon.cpp)
+uint32 PvPTitlesRequiredKills(uint8 rank)
+{
+    static uint32 const defaults[14] =
+    {
+        RANK_ONE_HK_COUNT, RANK_TWO_HK_COUNT, RANK_THREE_HK_COUNT, RANK_FOUR_HK_COUNT,
+        RANK_FIVE_HK_COUNT, RANK_SIX_HK_COUNT, RANK_SEVEN_HK_COUNT, RANK_EIGHT_HK_COUNT,
+        RANK_NINE_HK_COUNT, RANK_TEN_HK_COUNT, RANK_ELEVEN_HK_COUNT, RANK_TWELVE_HK_COUNT,
+        RANK_THIRTEEN_HK_COUNT, RANK_FOURTEEN_HK_COUNT
+    };
+
+    if (rank < 1 || rank > 14)
+        return 0;
+
+    return sConfigMgr->GetOption<uint32>("PvPTitles.Rank_" + std::to_string(rank), defaults[rank - 1]);
+}
+
+void AddPvpTitlesScripts()
 {
     new PVPTitles();
 }

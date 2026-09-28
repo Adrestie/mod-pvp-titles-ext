@@ -1,6 +1,12 @@
 void AddPvpTitlesScripts();
+void AddPvpTitlesAddonScripts();
+void AddPvpTitlesDishonorScripts();
 
-void Addmod_pvp_titlesScripts()
+// The loader is named after the module directory (modules/CMakeLists.txt):
+// "mod-pvp-titles-ext" gives Addmod_pvp_titles_extScripts
+void Addmod_pvp_titles_extScripts()
 {
     AddPvpTitlesScripts();
+    AddPvpTitlesAddonScripts();
+    AddPvpTitlesDishonorScripts();
 }
