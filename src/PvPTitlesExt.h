@@ -25,6 +25,10 @@ namespace PvPTitlesExt
     // "DISHONOR:<seconds left>,<kills in window>,<kills required>,<window>"
     // (PvPTitlesDishonor.cpp)
     void SendDishonorState(Player* player);
+
+    // "CIV:<entry>:<0|1>" -- whether the creature template carries
+    // CREATURE_FLAG_EXTRA_CIVILIAN, 0 for an unknown entry
+    void SendCivilian(Player* player, uint32 entry);
 }
 
 #endif

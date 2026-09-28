@@ -29,12 +29,15 @@ Clients cannot read the server configuration, so an interface has no way to know
 |---|---|
 | `RANKS:<k1>,...,<k14>` | lifetime honorable kills required for ranks 1 to 14 |
 | `DISHONOR:<left>,<kills>,<required>,<window>` | seconds left Dishonored (0: not Dishonored), dishonorable kills within the window, kills that make one Dishonored, window in seconds; all zero when the feature is disabled |
+| `CIV:<entry>:<0\|1>` | whether the creature template `<entry>` is flagged `CREATURE_FLAG_EXTRA_CIVILIAN` (the 3.3.5 creature query does not carry the flag), 0 for an unknown entry |
 
 `RANKS` is sent at login. An addon asks for both messages by whispering itself `REQ` with the same prefix (the login message may reach the client before its interface is loaded, and `/reload` loses it):
 
 ```lua
 SendAddonMessage("PVPTITLES", "REQ", "WHISPER", UnitName("player"))
 ```
+
+The civilian flag is asked the same way, one creature entry at a time -- `CIV:<entry>`, the entry read from the creature's GUID -- and answered with `CIV:<entry>:<0|1>`.
 
 Only accept these messages from the player himself.
 

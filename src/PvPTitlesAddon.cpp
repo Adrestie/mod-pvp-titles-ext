@@ -9,18 +9,28 @@
  *   server -> client  "RANKS:<k1>,...,<k14>"   lifetime honorable kills per rank
  *                     "DISHONOR:<left>,<kills>,<required>,<window>"
  *                                              (PvPTitlesDishonor.cpp)
+ *                     "CIV:<entry>:<0|1>"      whether that creature is a civilian
  *   client -> server  "REQ"                    whispered to itself: answered
  *                                              with both messages, not echoed
+ *                     "CIV:<entry>"            answered with "CIV:<entry>:<0|1>",
+ *                                              not echoed
  *
  * The login push may reach the client before its interface is loaded; the
  * request covers that case and /reload.
+ *
+ * The civilian flag (CREATURE_FLAG_EXTRA_CIVILIAN) is server data: the 3.3.5
+ * creature query response does not carry it, so an interface that wants to
+ * mark civilians in its tooltips asks for the creature entry it shows.
  */
 
 #include "Chat.h"
 #include "Configuration/Config.h"
+#include "CreatureData.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "PvPTitlesExt.h"
 #include "ScriptMgr.h"
+#include "StringConvert.h"
 #include "WorldPacket.h"
 
 void PvPTitlesExt::SendAddonMessage(Player* player, std::string const& message)
@@ -45,6 +55,13 @@ void PvPTitlesExt::SendRanks(Player* player)
     SendAddonMessage(player, message);
 }
 
+void PvPTitlesExt::SendCivilian(Player* player, uint32 entry)
+{
+    CreatureTemplate const* creature = sObjectMgr->GetCreatureTemplate(entry);
+    bool civilian = creature && (creature->flags_extra & CREATURE_FLAG_EXTRA_CIVILIAN);
+    SendAddonMessage(player, "CIV:" + std::to_string(entry) + ":" + (civilian ? "1" : "0"));
+}
+
 class PvPTitlesAddon : public PlayerScript
 {
 public:
@@ -66,14 +83,29 @@ public:
         if (language != LANG_ADDON || receiver != player)
             return true;
 
-        if (msg != std::string(PvPTitlesExt::ADDON_PREFIX) + "\tREQ")
+        std::string const prefix = std::string(PvPTitlesExt::ADDON_PREFIX) + "\t";
+        if (msg.compare(0, prefix.size(), prefix) != 0)
             return true;
 
-        if (sConfigMgr->GetOption<bool>("PvPTitles.Enable", false))
+        std::string const request = msg.substr(prefix.size());
+        bool const enabled = sConfigMgr->GetOption<bool>("PvPTitles.Enable", false);
+
+        if (request == "REQ")
         {
-            PvPTitlesExt::SendRanks(player);
-            PvPTitlesExt::SendDishonorState(player);
+            if (enabled)
+            {
+                PvPTitlesExt::SendRanks(player);
+                PvPTitlesExt::SendDishonorState(player);
+            }
         }
+        else if (request.compare(0, 4, "CIV:") == 0)
+        {
+            if (enabled)
+                if (Optional<uint32> entry = Acore::StringTo<uint32>(request.substr(4), 10))
+                    PvPTitlesExt::SendCivilian(player, *entry);
+        }
+        else
+            return true;
 
         // answered: the request is not echoed back
         return false;
