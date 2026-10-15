@@ -30,12 +30,19 @@
  *
  * Forced reactions coming from auras (SPELL_AURA_FORCE_REACTION) share the
  * same map: those on a faction with a reputation are lost when the state ends.
+ *
+ * Threads (MapUpdate.Threads > 1): maps are updated in parallel, so the state
+ * lives on each player (Object::CustomData), touched only by the thread of
+ * his map -- the units the reaction and update hooks compare share that map.
+ * Login and logout run in the world thread, never alongside map updates. The
+ * one value shared by every map is the count of Dishonored players, atomic.
  */
 
 #include "CellImpl.h"
 #include "Chat.h"
 #include "Configuration/Config.h"
 #include "Creature.h"
+#include "DataMap.h"
 #include "DBCStores.h"
 #include "DatabaseEnv.h"
 #include "GameTime.h"
@@ -49,10 +56,10 @@
 #include "SpellMgr.h"
 #include "StringFormat.h"
 #include "Util.h"
+#include <atomic>
 #include <deque>
 #include <limits>
 #include <list>
-#include <unordered_map>
 
 namespace
 {
@@ -63,7 +70,11 @@ namespace
 
     constexpr uint32 CHECK_INTERVAL = 1000;
 
-    struct DishonorState
+    // CustomData key of the state on a player
+    constexpr char const* STATE_KEY = "mod-pvp-titles-ext:dishonor";
+
+    // a player with a state (Dishonored, or dishonorable kills pending)
+    struct DishonorState : public DataMap::Base
     {
         std::deque<uint32> kills;   // dishonorable kills within the window (unix time)
         uint32 expires = 0;         // end of the Dishonored state (unix time), 0 = none
@@ -72,12 +83,9 @@ namespace
         uint32 checkTimer = 0;
     };
 
-    // online players with a state (Dishonored, or dishonorable kills pending)
-    std::unordered_map<ObjectGuid::LowType, DishonorState> States;
-
-    // players whose effects are in force: the per-observer hooks leave at once
-    // while it is zero
-    uint32 DishonoredOnline = 0;
+    // players whose effects are in force, on every map: the per-observer hooks
+    // leave at once while it is zero
+    std::atomic<uint32> DishonoredOnline{0};
 
     bool Enabled()
     {
@@ -149,8 +157,7 @@ namespace
         if (!player)
             return nullptr;
 
-        auto itr = States.find(player->GetGUID().GetCounter());
-        return itr == States.end() ? nullptr : &itr->second;
+        return player->CustomData.Get<DishonorState>(STATE_KEY);
     }
 
     bool IsDishonored(Player const* player)
@@ -300,7 +307,7 @@ namespace
     {
         uint32 const now = Now();
         ObjectGuid::LowType const guid = killer->GetGUID().GetCounter();
-        DishonorState& state = States[guid];
+        DishonorState& state = *killer->CustomData.GetDefault<DishonorState>(STATE_KEY);
         Prune(state, now);
 
         if (state.expires > now)
@@ -391,7 +398,7 @@ public:
         if (!state.expires && state.kills.empty())
             return;
 
-        States[guid] = state;
+        player->CustomData.Set(STATE_KEY, new DishonorState(state));
         if (state.expires)
             ChatHandler(player->GetSession()).PSendSysMessage("You are Dishonored for another {}.", secsToTimeString(state.expires - now));
         // the effects are applied by the first update, in the world
@@ -399,13 +406,13 @@ public:
 
     void OnPlayerLogout(Player* player) override
     {
-        auto itr = States.find(player->GetGUID().GetCounter());
-        if (itr == States.end())
+        DishonorState* state = Find(player);
+        if (!state)
             return;
 
-        if (itr->second.applied)
+        if (state->applied)
             --DishonoredOnline;
-        States.erase(itr);
+        player->CustomData.Erase(STATE_KEY);
     }
 
     void OnPlayerUpdate(Player* player, uint32 diff) override
